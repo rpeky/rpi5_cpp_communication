@@ -1,0 +1,9 @@
+services:
+  comms:
+    build:
+      context: .
+      dockerfile: reciever.dockerfile
+    image: ghcr.io/rpeky/rpicomms_receiver:latest
+    container_name: recv
+    network_mode: "host"
+    restart: unless-stopped 

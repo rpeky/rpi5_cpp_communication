@@ -1,0 +1,10 @@
+
+services:
+  comms:
+    build:
+      context: .
+      dockerfile: comms.dockerfile
+    image: ghcr.io/rpeky/rpicomms_sender:latest
+    container_name: comms
+    network_mode: "host"
+    restart: unless-stopped 
