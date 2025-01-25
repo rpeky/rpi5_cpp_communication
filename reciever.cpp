@@ -20,6 +20,7 @@ const int BUFFER_SIZE=1024;
 //}
 
 // get current time as a str
+/*
 std::string get_curr_time(){
 	auto now = std::chrono::system_clock::now();
 	std::time_t current_time = std::chrono::system_clock::to_time_t(now);
@@ -27,7 +28,9 @@ std::string get_curr_time(){
 	std::strftime(time_str, sizeof(time_str),"%Y-%m-%d %H:%M:%S", std::localtime(&current_time));
 	return std::string(time_str);
 }
+*/
 
+/*
 void udp_send(const std::string &broadcast_ip){
 	int sock;
 	struct sockaddr_in broadcast_addr;
@@ -64,8 +67,8 @@ void udp_send(const std::string &broadcast_ip){
 	}
 	close(sock);
 }
+*/
 
-/*
 void udp_receive(){
 	int sock;
 	struct sockaddr_in recv_addr;
@@ -103,16 +106,15 @@ void udp_receive(){
 	}
 	close(sock);
 }
-*/
 
 int main(){
-	std::string broadcast_ip = "172.16.1.10";
+	//std::string broadcast_ip = "172.16.1.10";
 
-	std::thread sender(udp_send,broadcast_ip);
-	//std::thread receiver(udp_receive);
+	//std::thread sender(udp_send,broadcast_ip);
+	std::thread receiver(udp_receive);
 
-	sender.join();
-	//receiver.join();
+	//sender.join();
+	receiver.join();
 
 	return 0;
 }

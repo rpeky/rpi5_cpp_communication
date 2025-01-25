@@ -31,6 +31,18 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/rpeky/rpicomms:latest
-            ghcr.io/rpeky/rpicomms:${{ github.sha }}
+            ghcr.io/rpeky/rpicomms_sender:latest
+            ghcr.io/rpeky/rpicomms_sender:${{ github.sha }}
+
+      # refer to https://docs.docker.com/build/building/multi-platform/
+      - name: Build and Push image using both arm64 and amd64 (arm and x86)
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: receiver.dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/rpeky/rpicomms_receiver:latest
+            ghcr.io/rpeky/rpicomms_receiver:${{ github.sha }}
 
