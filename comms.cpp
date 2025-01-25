@@ -58,7 +58,7 @@ void udp_send(const std::string &broadcast_ip){
 			perror("Failed to send message");
 		}
 		else{
-			std::cout<<"Sent: "<<messages<<std::endl;
+			std::cout<<"Sent: "<<message<<std::endl;
 		}
 		sleep(1.5);
 	}
