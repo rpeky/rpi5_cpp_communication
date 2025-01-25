@@ -27,7 +27,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: ./safmc2025.dockerfile
+          file: ./comms.dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
