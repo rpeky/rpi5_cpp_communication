@@ -39,10 +39,10 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          file: receiver.dockerfile
+          file: reciever.dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/rpeky/rpicomms_receiver:latest
-            ghcr.io/rpeky/rpicomms_receiver:${{ github.sha }}
+            ghcr.io/rpeky/rpicomms_reciever:latest
+            ghcr.io/rpeky/rpicomms_reciever:${{ github.sha }}
 
