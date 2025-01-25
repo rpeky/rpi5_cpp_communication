@@ -25,6 +25,7 @@ std::string get_curr_time(){
 	char time_str[BUFFER_SIZE];
 	std::strftime(time_str, sizeof(time_str),"%Y-%m-%d %H:%M:%S", std::localtime(&current_time));
 	return std::string(time_str);
+}
 
 void udp_send(const std::string &broadcast_ip){
 	int sock;
