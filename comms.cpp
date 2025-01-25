@@ -3,6 +3,7 @@
 #include <thread>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cstring>
 
 // remove later, using chrono to send test message for time
 #include <chrono>
