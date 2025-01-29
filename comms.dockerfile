@@ -1,6 +1,6 @@
 FROM gcc:latest
 
-RUN apt-get update && apt-get install -y libpthread-stubs0-dev
+RUN apt-get update && apt-get install -y libpthread-stubs0-dev nlohmann-json3-dev
 
 WORKDIR /app
 
