@@ -1,0 +1,12 @@
+{
+    "test_bool": true,
+    "test_int": 123,
+    "test_str": "abcdef",
+    "test_vec": [
+        1,
+        2,
+        3,
+        4,
+        5
+    ]
+}
