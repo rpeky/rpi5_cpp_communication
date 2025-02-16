@@ -1,0 +1,30 @@
+
+Try running in  /use/local/bin/
+sudo chmod +x /usr/local/bin/setup_batman.sh
+run ./
+
+sudo vim /etc/systemd/system/batman.service
+
+[Unit]
+Description=BATMAN-adv Mesh Network Setup
+After=network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup_batman.sh //50//
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+
+set a nnumber at the end of the .sh for the final octect
+
+run 
+sudo systemctl daemon-reload
+sudo systemctl restart batman.service
+
+sudo systemctl status batman.service
+
