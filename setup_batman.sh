@@ -2,7 +2,7 @@
 set -e  # Exit on error
 
 # Ensure script is run with sudo
-if [[ "$EUID" -ne 0 ]]; then
+if [ "$EUID" -ne 0 ]; then
 	    echo "Please run as root: sudo $0 <last_octet_of_ip>"
 	        exit 1
 fi
@@ -11,82 +11,81 @@ fi
 BAT_IFACE="bat0"
 WLAN_IFACE="wlan0"
 SSID="BATMAN-MESH"
-FREQ=2412          # 2.4 GHz (use 5200 for 5 GHz)
-CHANNEL=1          # Wi-Fi Ad-Hoc Channel
+FREQ=2412  # 2.4 GHz (use 5200 for 5 GHz)
+CHANNEL=1  # Wi-Fi Ad-Hoc Channel
 DEFAULT_OCTET=100  # Default last octet if none provided
 
 # Check if an argument is provided
-if [[ -z "$1" ]]; then
+if [ -z "$1" ]; then
 	    LAST_OCTET=$DEFAULT_OCTET
-	        echo "[!] No IP octet provided, defaulting to 192.168.100.$LAST_OCTET"
+	        echo "[!] No IP octet provided, defaulting to 172.16.0.$LAST_OCTET"
 	else
 		    # Validate argument is a number between 2-254
-		        if ! [[ "$1" =~ ^[0-9]+$ ]] || [[ "$1" -lt 2 ]] || [[ "$1" -gt 254 ]]; then
+		        if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 2 ] || [ "$1" -gt 254 ]; then
 				        echo "[ERROR] Invalid argument: Please provide a number between 2 and 254."
 					        exit 1
 						    fi
 						        LAST_OCTET=$1
 fi
 
-BAT_IP="192.168.100.$LAST_OCTET/24"
+BAT_IP="172.16.0.$LAST_OCTET/24"
 SERVICE_FILE="/etc/systemd/system/batman.service"
 
-# Function to check and install dependencies
 install_dependencies() {
 	    echo "[+] Checking dependencies..."
 	        REQUIRED_PACKAGES=("batctl" "iw" "wireless-tools")
 		    MISSING_PACKAGES=()
 
 		        for pkg in "${REQUIRED_PACKAGES[@]}"; do
-        if ! dpkg -l | grep -q "^ii  $pkg"; then
-            MISSING_PACKAGES+=("$pkg")
-        fi
-    done
+				        if ! dpkg -l | grep -q "^ii  $pkg"; then
+						            MISSING_PACKAGES+=("$pkg")
+							            fi
+								        done
 
-    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
-        echo "[+] Installing missing dependencies: ${MISSING_PACKAGES[*]}"
-	        apt update && apt install -y "${MISSING_PACKAGES[@]}"
-		    else
-			            echo "[+] All dependencies are already installed."
-				        fi
-				}
+									    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
+										            echo "[+] Installing missing dependencies: ${MISSING_PACKAGES[*]}"
+											            apt update && apt install -y "${MISSING_PACKAGES[@]}"
+												        else
+														        echo "[+] All dependencies are already installed."
+															    fi
+														    }
 
-				echo "[+] Unblocking Wi-Fi via rfkill"
-				rfkill unblock wlan
+														    echo "[+] Unblocking Wi-Fi via rfkill"
+														    rfkill unblock wlan
 
-				# Install required dependencies
-				install_dependencies
+														    # Install required dependencies
+														    install_dependencies
 
-				echo "[+] Loading BATMAN-adv kernel module"
-				modprobe batman_adv
+														    echo "[+] Loading BATMAN-adv kernel module"
+														    modprobe batman_adv
 
-				# Ensure BATMAN module loads at boot
-				echo "batman_adv" | tee -a /etc/modules
+														    # Ensure BATMAN module loads at boot
+														    echo "batman_adv" | tee -a /etc/modules
 
-				echo "[+] Setting up Wi-Fi in Ad-Hoc mode"
-				ip link set "$WLAN_IFACE" down
-				iw dev "$WLAN_IFACE" set type ibss
-				ip link set "$WLAN_IFACE" up
+														    echo "[+] Setting up Wi-Fi in Ad-Hoc mode"
+														    ip link set "$WLAN_IFACE" down
+														    iw dev "$WLAN_IFACE" set type ibss
+														    ip link set "$WLAN_IFACE" up
 
-				echo "[+] Connecting to BATMAN Wi-Fi Ad-Hoc Network"
-				iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" fixed-freq "$CHANNEL" 02:12:34:56:78:9A
+														    echo "[+] Connecting to BATMAN Wi-Fi Ad-Hoc Network"
+														    iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" fixed-freq "$CHANNEL" 02:12:34:56:78:9A
 
-				echo "[+] Adding $WLAN_IFACE to BATMAN-adv"
-				batctl if add "$WLAN_IFACE"
-				ip link set "$BAT_IFACE" up
+														    echo "[+] Adding $WLAN_IFACE to BATMAN-adv"
+														    batctl if add "$WLAN_IFACE"
+														    ip link set "$BAT_IFACE" up
 
-				echo "[+] Assigning IP address to $BAT_IFACE: $BAT_IP"
-				ip addr add "$BAT_IP" dev "$BAT_IFACE"
+														    echo "[+] Assigning IP address to $BAT_IFACE: $BAT_IP"
+														    ip addr add "$BAT_IP" dev "$BAT_IFACE"
 
-				echo "[+] Persisting BATMAN-adv configuration"
-				cat <<EOF | tee /etc/network/interfaces.d/batman
+echo "[+] Persisting BATMAN-adv configuration"
+cat <<EOF | tee /etc/network/interfaces.d/batman
 auto $BAT_IFACE
 iface $BAT_IFACE inet static
     address $BAT_IP
     netmask 255.255.255.0
     pre-up modprobe batman_adv
     post-up batctl if add $WLAN_IFACE
-EOF
+    EOF
 
 echo "[+] Creating systemd service for automatic startup"
 cat <<EOF | tee $SERVICE_FILE
@@ -116,5 +115,6 @@ systemctl enable batman.service
 systemctl start batman.service
 
 echo "[+] BATMAN-adv setup complete! Checking network status..."
-batctl n   # Show connected neighbors
-batctl o   # Show BATMAN-adv originators
+batctl n  # Show connected neighbors
+batctl o  # Show BATMAN-adv originators
+
