@@ -50,6 +50,12 @@ install_dependencies() {
 															    fi
 														    }
 
+														    echo "[+] Stopping interfering services (NetworkManager & wpa_supplicant)"
+														    systemctl stop wpa_supplicant || true
+														    systemctl stop NetworkManager || true
+														    systemctl disable wpa_supplicant || true
+														    systemctl disable NetworkManager || true
+
 														    echo "[+] Unblocking Wi-Fi via rfkill"
 														    rfkill unblock wlan
 
@@ -62,30 +68,37 @@ install_dependencies() {
 														    # Ensure BATMAN module loads at boot
 														    echo "batman_adv" | tee -a /etc/modules
 
-														    echo "[+] Setting up Wi-Fi in Ad-Hoc mode"
+														    echo "[+] Setting up Wi-Fi in IBSS (Ad-Hoc) mode"
 														    ip link set "$WLAN_IFACE" down
-														    iw dev "$WLAN_IFACE" set type ibss
+														    iw dev "$WLAN_IFACE" set type ibss || { echo "Error: Failed to set IBSS mode"; exit 1; }
 														    ip link set "$WLAN_IFACE" up
 
-														    echo "[+] Connecting to BATMAN Wi-Fi Ad-Hoc Network"
-														    iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" fixed-freq "$CHANNEL" 02:12:34:56:78:9A
+														    echo "[+] Joining BATMAN-MESH IBSS Cell"
+														    iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" HT20 fixed-freq "$CHANNEL" 02:12:34:56:78:9A || { echo "Error: Failed to join IBSS"; exit 1; }
+
+														    echo "[DEBUG] Checking Wi-Fi mode..."
+														    iw dev "$WLAN_IFACE" info
+
+														    echo "[DEBUG] Checking IBSS status..."
+														    iw dev "$WLAN_IFACE" link
 
 														    echo "[+] Adding $WLAN_IFACE to BATMAN-adv"
 														    batctl if add "$WLAN_IFACE"
 														    ip link set "$BAT_IFACE" up
 
 														    echo "[+] Assigning IP address to $BAT_IFACE: $BAT_IP"
+														    ip addr flush dev "$BAT_IFACE" || true
 														    ip addr add "$BAT_IP" dev "$BAT_IFACE"
 
-echo "[+] Persisting BATMAN-adv configuration"
-cat <<EOF | tee /etc/network/interfaces.d/batman
+														    echo "[+] Persisting BATMAN-adv configuration"
+														    cat <<EOF | tee /etc/network/interfaces.d/batman
 auto $BAT_IFACE
 iface $BAT_IFACE inet static
     address $BAT_IP
     netmask 255.255.255.0
     pre-up modprobe batman_adv
     post-up batctl if add $WLAN_IFACE
-    EOF
+EOF
 
 echo "[+] Creating systemd service for automatic startup"
 cat <<EOF | tee $SERVICE_FILE
