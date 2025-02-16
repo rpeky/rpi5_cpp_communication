@@ -3,8 +3,8 @@ set -e  # Exit on error
 
 # Ensure script is run with sudo
 if [ "$EUID" -ne 0 ]; then
-	    echo "Please run as root: sudo $0 <last_octet_of_ip>"
-	        exit 1
+    echo "Please run as root: sudo $0 <last_octet_of_ip>"
+    exit 1
 fi
 
 # Configuration Variables
@@ -17,81 +17,90 @@ DEFAULT_OCTET=100  # Default last octet if none provided
 
 # Check if an argument is provided
 if [ -z "$1" ]; then
-	    LAST_OCTET=$DEFAULT_OCTET
-	        echo "[!] No IP octet provided, defaulting to 172.16.0.$LAST_OCTET"
-	else
-		    # Validate argument is a number between 2-254
-		        if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 2 ] || [ "$1" -gt 254 ]; then
-				        echo "[ERROR] Invalid argument: Please provide a number between 2 and 254."
-					        exit 1
-						    fi
-						        LAST_OCTET=$1
+    LAST_OCTET=$DEFAULT_OCTET
+    echo "[!] No IP octet provided, defaulting to 172.16.0.$LAST_OCTET"
+else
+    # Validate argument is a number between 2-254
+    if ! [[ "$1" =~ ^[0-9]+$ ]] || [ "$1" -lt 2 ] || [ "$1" -gt 254 ]; then
+        echo "[ERROR] Invalid argument: Please provide a number between 2 and 254."
+        exit 1
+    fi
+    LAST_OCTET=$1
 fi
 
 BAT_IP="172.16.0.$LAST_OCTET/24"
 SERVICE_FILE="/etc/systemd/system/batman.service"
 
 install_dependencies() {
-	    echo "[+] Checking dependencies..."
-	        REQUIRED_PACKAGES=("batctl" "iw" "wireless-tools")
-		    MISSING_PACKAGES=()
+    echo "[+] Checking dependencies..."
+    REQUIRED_PACKAGES=("batctl" "iw" "wireless-tools")
+    MISSING_PACKAGES=()
 
-		        for pkg in "${REQUIRED_PACKAGES[@]}"; do
-				        if ! dpkg -l | grep -q "^ii  $pkg"; then
-						            MISSING_PACKAGES+=("$pkg")
-							            fi
-								        done
+    for pkg in "${REQUIRED_PACKAGES[@]}"; do
+        if ! dpkg -l | grep -q "^ii  $pkg"; then
+            MISSING_PACKAGES+=("$pkg")
+        fi
+    done
 
-									    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
-										            echo "[+] Installing missing dependencies: ${MISSING_PACKAGES[*]}"
-											            apt update && apt install -y "${MISSING_PACKAGES[@]}"
-												        else
-														        echo "[+] All dependencies are already installed."
-															    fi
-														    }
+    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
+        echo "[+] Installing missing dependencies: ${MISSING_PACKAGES[*]}"
+        apt update && apt install -y "${MISSING_PACKAGES[@]}"
+    else
+        echo "[+] All dependencies are already installed."
+    fi
+}
 
-														    echo "[+] Stopping interfering services (NetworkManager & wpa_supplicant)"
-														    systemctl stop wpa_supplicant || true
-														    systemctl stop NetworkManager || true
-														    systemctl disable wpa_supplicant || true
-														    systemctl disable NetworkManager || true
+echo "[+] Stopping interfering services (NetworkManager & wpa_supplicant)"
+systemctl stop wpa_supplicant || true
+systemctl stop NetworkManager || true
+systemctl disable wpa_supplicant || true
+systemctl disable NetworkManager || true
+pkill wpa_supplicant || true
+pkill dhclient || true
+pkill NetworkManager || true
 
-														    echo "[+] Unblocking Wi-Fi via rfkill"
-														    rfkill unblock wlan
+echo "[+] Unblocking Wi-Fi via rfkill"
+rfkill unblock wlan
 
-														    # Install required dependencies
-														    install_dependencies
+# Install required dependencies
+install_dependencies
 
-														    echo "[+] Loading BATMAN-adv kernel module"
-														    modprobe batman_adv
+echo "[+] Loading BATMAN-adv kernel module"
+modprobe batman_adv
 
-														    # Ensure BATMAN module loads at boot
-														    echo "batman_adv" | tee -a /etc/modules
+# Ensure BATMAN module loads at boot
+echo "batman_adv" | tee -a /etc/modules
 
-														    echo "[+] Setting up Wi-Fi in IBSS (Ad-Hoc) mode"
-														    ip link set "$WLAN_IFACE" down
-														    iw dev "$WLAN_IFACE" set type ibss || { echo "Error: Failed to set IBSS mode"; exit 1; }
-														    ip link set "$WLAN_IFACE" up
+echo "[+] Setting up Wi-Fi in IBSS (Ad-Hoc) mode"
+ip link set "$WLAN_IFACE" down
+iw dev "$WLAN_IFACE" set type ibss || { echo "Error: Failed to set IBSS mode"; exit 1; }
+ip link set "$WLAN_IFACE" up
 
-														    echo "[+] Joining BATMAN-MESH IBSS Cell"
-														    iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" HT20 fixed-freq "$CHANNEL" 02:12:34:56:78:9A || { echo "Error: Failed to join IBSS"; exit 1; }
+echo "[+] Checking if the Wi-Fi adapter supports IBSS mode..."
+if ! iw list | grep -q "IBSS"; then
+    echo "[ERROR] Your Wi-Fi adapter does not support IBSS (Ad-Hoc) mode."
+    exit 1
+fi
 
-														    echo "[DEBUG] Checking Wi-Fi mode..."
-														    iw dev "$WLAN_IFACE" info
+echo "[+] Joining BATMAN-MESH IBSS Cell"
+iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" HT20 02:12:34:56:78:9A || { echo "Error: Failed to join IBSS"; exit 1; }
 
-														    echo "[DEBUG] Checking IBSS status..."
-														    iw dev "$WLAN_IFACE" link
+echo "[DEBUG] Checking Wi-Fi mode..."
+iw dev "$WLAN_IFACE" info
 
-														    echo "[+] Adding $WLAN_IFACE to BATMAN-adv"
-														    batctl if add "$WLAN_IFACE"
-														    ip link set "$BAT_IFACE" up
+echo "[DEBUG] Checking IBSS status..."
+iw dev "$WLAN_IFACE" link
 
-														    echo "[+] Assigning IP address to $BAT_IFACE: $BAT_IP"
-														    ip addr flush dev "$BAT_IFACE" || true
-														    ip addr add "$BAT_IP" dev "$BAT_IFACE"
+echo "[+] Adding $WLAN_IFACE to BATMAN-adv"
+batctl if add "$WLAN_IFACE"
+ip link set "$BAT_IFACE" up
 
-														    echo "[+] Persisting BATMAN-adv configuration"
-														    cat <<EOF | tee /etc/network/interfaces.d/batman
+echo "[+] Assigning IP address to $BAT_IFACE: $BAT_IP"
+ip addr flush dev "$BAT_IFACE" || true
+ip addr add "$BAT_IP" dev "$BAT_IFACE"
+
+echo "[+] Persisting BATMAN-adv configuration"
+cat <<EOF | tee /etc/network/interfaces.d/batman
 auto $BAT_IFACE
 iface $BAT_IFACE inet static
     address $BAT_IP
@@ -130,4 +139,3 @@ systemctl start batman.service
 echo "[+] BATMAN-adv setup complete! Checking network status..."
 batctl n  # Show connected neighbors
 batctl o  # Show BATMAN-adv originators
-
