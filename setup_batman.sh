@@ -32,24 +32,22 @@ fi
 BAT_IP="172.16.0.$LAST_OCTET/24"
 SERVICE_FILE="/etc/systemd/system/batman.service"
 
-install_dependencies() {
-    echo "[+] Checking dependencies..."
-    REQUIRED_PACKAGES=("batctl" "iw" "wireless-tools")
-    MISSING_PACKAGES=()
+echo "[+] Unblocking Wi-Fi via rfkill"
+rfkill unblock all
 
-    for pkg in "${REQUIRED_PACKAGES[@]}"; do
-        if ! dpkg -l | grep -q "^ii  $pkg"; then
-            MISSING_PACKAGES+=("$pkg")
-        fi
-    done
+echo "[+] Removing old BATMAN-adv installation"
+modprobe -r batman_adv || true
+apt remove --purge -y batctl || true
+apt autoremove -y
 
-    if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
-        echo "[+] Installing missing dependencies: ${MISSING_PACKAGES[*]}"
-        apt update && apt install -y "${MISSING_PACKAGES[@]}"
-    else
-        echo "[+] All dependencies are already installed."
-    fi
-}
+echo "[+] Reinstalling BATMAN-adv"
+apt update && apt install -y batctl iw wireless-tools
+
+echo "[+] Loading BATMAN-adv kernel module"
+modprobe batman_adv
+
+# Ensure BATMAN module loads at boot
+echo "batman_adv" | tee -a /etc/modules
 
 echo "[+] Stopping interfering services (NetworkManager & wpa_supplicant)"
 systemctl stop wpa_supplicant || true
@@ -59,18 +57,6 @@ systemctl disable NetworkManager || true
 pkill wpa_supplicant || true
 pkill dhclient || true
 pkill NetworkManager || true
-
-echo "[+] Unblocking Wi-Fi via rfkill"
-rfkill unblock wlan
-
-# Install required dependencies
-install_dependencies
-
-echo "[+] Loading BATMAN-adv kernel module"
-modprobe batman_adv
-
-# Ensure BATMAN module loads at boot
-echo "batman_adv" | tee -a /etc/modules
 
 echo "[+] Checking if the Wi-Fi adapter supports IBSS mode..."
 if ! iw list | grep -q "IBSS"; then
