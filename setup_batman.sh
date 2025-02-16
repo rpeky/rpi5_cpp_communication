@@ -11,7 +11,8 @@ fi
 BAT_IFACE="bat0"
 WLAN_IFACE="wlan0"
 SSID="BATMAN-MESH"
-FREQ=2412  # 2.4 GHz (use 5200 for 5 GHz)
+DEFAULT_FREQ=2412  # Default to 2.4 GHz
+FREQ_5GHZ=5200  # Alternative 5 GHz frequency
 CHANNEL=1  # Wi-Fi Ad-Hoc Channel
 DEFAULT_OCTET=100  # Default last octet if none provided
 
@@ -71,19 +72,28 @@ modprobe batman_adv
 # Ensure BATMAN module loads at boot
 echo "batman_adv" | tee -a /etc/modules
 
-echo "[+] Setting up Wi-Fi in IBSS (Ad-Hoc) mode"
-ip link set "$WLAN_IFACE" down
-iw dev "$WLAN_IFACE" set type ibss || { echo "Error: Failed to set IBSS mode"; exit 1; }
-ip link set "$WLAN_IFACE" up
-
 echo "[+] Checking if the Wi-Fi adapter supports IBSS mode..."
 if ! iw list | grep -q "IBSS"; then
     echo "[ERROR] Your Wi-Fi adapter does not support IBSS (Ad-Hoc) mode."
     exit 1
 fi
 
+echo "[+] Setting up Wi-Fi in IBSS (Ad-Hoc) mode"
+ip link set "$WLAN_IFACE" down
+iw dev "$WLAN_IFACE" set type ibss || { echo "Error: Failed to set IBSS mode"; exit 1; }
+ip link set "$WLAN_IFACE" up
+
+echo "[+] Determining best frequency..."
+if iw list | grep -q "5200 MHz"; then
+    FREQ=$FREQ_5GHZ
+    echo "[+] Using 5 GHz (5200 MHz) for IBSS mode."
+else
+    FREQ=$DEFAULT_FREQ
+    echo "[+] Using 2.4 GHz (2412 MHz) for IBSS mode."
+fi
+
 echo "[+] Joining BATMAN-MESH IBSS Cell"
-iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" HT20 02:12:34:56:78:9A || { echo "Error: Failed to join IBSS"; exit 1; }
+iw dev "$WLAN_IFACE" ibss join "$SSID" "$FREQ" 02:12:34:56:78:9A || { echo "Error: Failed to join IBSS"; exit 1; }
 
 echo "[DEBUG] Checking Wi-Fi mode..."
 iw dev "$WLAN_IFACE" info
