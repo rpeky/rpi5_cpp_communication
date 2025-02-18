@@ -83,7 +83,7 @@ config_batman_mode() {
 
     echo "[1/5] Installing required packages..."
     apt-get update
-    apt-get install -y batctl batman-adv wireless-tools iw
+    apt-get install -y batctl wireless-tools iw
 
     echo "[2/5] Stopping interfering services (e.g., wpa_supplicant)..."
     systemctl stop wpa_supplicant.service || true
